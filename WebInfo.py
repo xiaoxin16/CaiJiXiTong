@@ -1,16 +1,21 @@
 #! /usr/bin/python
 # -*- coding: utf8 -*-
 
-import re, time, ipdb, math, socket
-from multiprocessing import Pool, Lock, Manager
+import re, time, ipdb, math, os, socket, datetime
+from multiprocessing import Pool
 from urllib.parse import urlparse
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import TimeoutException, UnexpectedAlertPresentException
 from openpyxl import Workbook
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment
 
+
+# import logging
+#
+# module_logger = logging.getLogger("Main.sub")
 
 # 1.
 def isIP(str):
@@ -23,11 +28,12 @@ def isIP(str):
 
 # 2. url formalization 标准化
 def get_url_normalize_single(url):
+    url_new = url
     default_scheme = "http"
     if urlparse(url).scheme == '':
         url_new = default_scheme + "://" + url
-    else:
-        url_new = url
+    elif urlparse(url).scheme == 'https':
+        url_new = urlparse(url).scheme + "://" + urlparse(url).hostname
     if urlparse(url_new).hostname is None:
         url_new = "异常"
     elif "." not in urlparse(url_new).hostname:
@@ -97,21 +103,21 @@ def multiprocess_fun(d_a, task_kind, conf_data):
                 continue
     new_dict = {}
     res_dict = []
-    maneger = Manager()
-    lock = maneger.Lock()
     for i in range(poll_num):
         new_dict[i] = dict(zip(key_dic[i], value_dic[i]))
-        print("分组:", new_dict[i])
+        # module_logger.info("分组:%s" % (new_dict[i]))
         if task_kind == 1:
-            res_dict.append(pool.apply_async(dns_process,  (new_dict[i], conf_data)))
+            if not os.path.exists(conf_data["log"]):
+                os.mkdir(conf_data["log"])
+            res_dict.append(pool.apply_async(dns_process, (new_dict[i], conf_data, i)))
         elif task_kind == 2:
-            res_dict.append(pool.apply_async(get_title_by_selenium, (new_dict[i], conf_data)))
+            if not os.path.exists(conf_data["screenshot"]):
+                os.mkdir(conf_data["screenshot"])
+            res_dict.append(pool.apply_async(get_title_by_selenium, (new_dict[i], conf_data, i)))
         elif task_kind == 3:
-            res_dict.append(pool.apply_async(get_alexa_rank_by_link114, (new_dict[i],)))
+            res_dict.append(pool.apply_async(get_alexa_rank_by_link114, (new_dict[i], conf_data, i)))
         elif task_kind == 4:
-            res_dict.append(pool.apply_async(get_alexa_rank_by_link114_multi, (new_dict[i], conf_data)))
-        elif task_kind == 5:
-            res_dict.append(pool.apply_async(get_alexa_rank_by_alexa, (new_dict[i],)))
+            res_dict.append(pool.apply_async(get_alexa_rank_by_link114_multi, (new_dict[i], conf_data, i)))
     pool.close()
     pool.join()
 
@@ -126,13 +132,28 @@ def multiprocess_fun(d_a, task_kind, conf_data):
         update_task_excel(res_dict_N, conf_data, 1)
     elif task_kind == 4:
         update_task_excel(res_dict_N, conf_data, 1)
-    elif task_kind == 5:
-        update_task_excel(res_dict_N, conf_data, 1)
     return res_dict_N
 
 
 # 4. [3, 'http://01014688.comxxx', 'http://01014688.comxxx', '01014688.comxxx', '', '', '', '']
-def dns_process(d_a, conf_data):
+def dns_process(d_a, conf_data, i):
+    import logging
+    logger = logging.getLogger("DNS")
+    logger.setLevel(level=logging.INFO)
+    handler = logging.FileHandler("%s/DNS-%d-log.txt" % (conf_data["log"], i))
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+
+    # console set
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+
+    logger.addHandler(handler)
+    # logger.addHandler(console)
+
+    start = datetime.datetime.now()
+
     for key, value in d_a.items():
         norm_url = get_url_normalize_single(value[1])
         value.append(norm_url)
@@ -142,14 +163,16 @@ def dns_process(d_a, conf_data):
             value.append("")
             value.append(domain)
             myaddr.append(domain)
+            logger.info("[%s\t%s\t%s]" % (value[0], domain, domain))
         else:
             value.append(domain)
             try:
-                # print(domain)
                 A = socket.gethostbyname(domain)
                 myaddr.append(A)
+                logger.info("[%s\t%s\t%s]" % (value[0], domain, myaddr[0]))
             except socket.error:
                 myaddr.append("")
+                logger.info("[%s\t%s\t解析失败]" % (value[0], domain))
             value.append(myaddr[0])
         time.sleep(0.1)
         if myaddr[0].strip() == "":
@@ -169,117 +192,133 @@ def dns_process(d_a, conf_data):
             else:
                 value.append("境外")
             value.append(city_str[0] + "·" + city_str[1])
+    end = datetime.datetime.now()
+    logger.info("%d" % (end-start).seconds)
     return d_a
 
 
 # 5.
-def get_title_by_selenium(d_a, conf_data):
+def get_title_by_selenium(d_a, conf_data, i):
+    import logging
+    logger = logging.getLogger("SELENIUM")
+    logger.setLevel(level=logging.INFO)
+    handler = logging.FileHandler("%s/SELEIUM-%d-log.txt" % (conf_data["log"], i))
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+
+    # console set
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+
+    logger.addHandler(handler)
+    # logger.addHandler(console)
+
+    start = datetime.datetime.now()
     chrome_options = Options()
-    # 设置浏览器窗口大小
+    chrome_options.add_argument('--ignore-certificate-errors')
     chrome_options.add_argument('--window-size=1366,768')
-    # chrome_options.add_argument('--disable-gpu')
-    # 限制图片+JavaScript
-    # prefs ={
-    #     'profile.managed_default_content_setting_values': {
-    #         'images': 2,
-    #         'javascript': 2
-    #     },
-    #     'permissions.default.stylesheet': 2
-    # }
-    # chrome_options.add_experimental_option('prefs', prefs)
-    # 浏览器不提供可视化页面. linux下如果系统不支持可视化不加这条会启动失败
-    # chrome_options.add_argument('--headless')
-    # 禁用浏览器弹窗
-    prefs = {
+    pref_sets ={
         'profile.default_content_setting_values': {
-            'notifications': 2
+            'javascript': 2
         }
     }
-    chrome_options.add_experimental_option('prefs', prefs)
-
-    # 启动浏览器
-    browser = webdriver.Chrome(chrome_options=chrome_options)
-    timeout_s = 15
+    chrome_options.add_experimental_option('prefs', pref_sets)
+    # chrome_options.add_argument('--headless')
+    browser = webdriver.Chrome(executable_path="../workdata/conf" + "/chromedriver.exe", options=chrome_options)
+    timeout_s = 10
     browser.implicitly_wait(timeout_s)
-    # browser.set_page_load_timeout(timeout_s - 1)
-    # browser.set_script_timeout(timeout_s - 1)
-    all_win = browser.window_handles
-    screen_shot_dir = conf_data["dst"] + "/截图/"
-
+    screen_shot_dir = conf_data["screenshot"] + "/"
     col_l = conf_data["col"]
     yum = len(d_a) % col_l
-    counts = math.ceil(len(d_a)/col_l)
+    counts = math.ceil(len(d_a) / col_l)
     key_list = list(d_a.keys())
     value_list = list(d_a.values())
     col_add = col_l
-    # print("***进入进程:", key_list)
-    # print("***进入进程:", value_list)
+    logger.info("key_list:%s" % key_list)
+    logger.info("value_list:%s" % value_list)
     for i in range(counts):
         if (i == (counts - 1)) and (yum > 0):
             col_add = yum
-        print("单个进程轮询:", len(d_a), yum, counts)
+        # print("单个进程轮询:", len(d_a), yum, counts)
         for j in range(col_add):
-            index = value_list[i*col_l + j][0]
-            url = value_list[i*col_l + j][2]
-            # print(index, url)
+            index = value_list[i * col_l + j][0]
+            url = value_list[i * col_l + j][2]
+            logger.info("%s, %s" % (index, url))
             # 开始请求
             try:
                 js = "window.open(\"" + url + "\");"
                 browser.execute_script(js)
+                logger.info("%s JS execute OK" % url)
             except {socket.timeout, TimeoutException}:
-                print("1. socket, 超时:", url)
+                logger.info("%s socket超时:" % url)
                 browser.execute_script("window.stop();")
                 url_refer = "超时"
-        time.sleep(timeout_s*0.8)
         for j in range(col_add):
-            index = value_list[i*col_l + j][0]
-            url = value_list[i*col_l + j][2]
+            index = value_list[i * col_l + j][0]
+            url = value_list[i * col_l + j][2]
             all_win = browser.window_handles
             browser.switch_to.window(all_win[-1])
             domain = urlparse(url).hostname
-            # print("*****", url)
+            logger.info("切换\t%s" % url)
             try:
                 b_title = browser.title
                 if b_title == "":
                     b_title = "补" + url
-                print(index, "\t", url, "\t", b_title)
+                # print(index, "\t", url, "\t", b_title)
                 url_con = browser.current_url.rstrip('/')
                 if domain == urlparse(url_con).hostname:
                     url_refer = ""
                 else:
                     url_refer = browser.current_url
                 browser.get_screenshot_as_file(screen_shot_dir + str(index) + "_" + str(domain) + ".png")
+                logger.info("%s\t%s\t%s, 正常-截图成功" % (index, url, b_title))
+            except UnexpectedAlertPresentException:
+                browser.switch_to.alert.accept()
+                b_title = browser.title
+                if b_title == "":
+                    b_title = "补" + url
+                # print(index, "\t", url, "\t", b_title)
+                url_con = browser.current_url.rstrip('/')
+                if domain == urlparse(url_con).hostname:
+                    url_refer = ""
+                else:
+                    url_refer = browser.current_url
+                browser.get_screenshot_as_file(screen_shot_dir + str(index) + "_" + str(domain) + ".png")
+                logger.info("%s\t%s\t%s, 弹窗-截图成功" % (index, url, b_title))
             except TimeoutException:
                 url_refer = "超时"
                 b_title = "超时或者无法访问"
                 url_con = ""
                 try:
                     browser.get_screenshot_as_file(screen_shot_dir + str(index) + "_" + str(domain) + ".png")
-                    print(index, " browser 超时:", url, "截图成功")
-                    # print("截图成功")
+                    b_title = "补" + url
+                    logger.info("%s\t%s\t%s, 超时-截图成功" % (index, url, b_title))
                 except BaseException as msg:
-                    print(index, ":", url, msg)
                     screen_shot_file_name = screen_shot_dir + str(index) + "_" + str(domain) + ".txt"
                     fpt = open(screen_shot_file_name, 'w')
                     fpt.write("超时了哇")
-                    print(index, " browser 超时:", url, "截图失败")
+                    logger.info("%s, 超时-截图失败, %s" % (url, str(msg)))
+                except TimeoutException:
+                    logger.info("%s, 超时-截图失败, 未知原因" % url)
             browser.close()
             browser.switch_to.window(all_win[0])
-
             value_list[i * col_l + j].append(b_title)
             value_list[i * col_l + j].append(url_refer)
             value_list[i * col_l + j].append(url_con)
     browser.close()
     browser.quit()
+    end = datetime.datetime.now()
+    logger.info("%d" % (end - start).seconds)
     return d_a
 
 
 # 6. link114 get Alexa one by one
-def get_alexa_rank_by_link114(da):
+def get_alexa_rank_by_link114(da, conf_data, i):
     url_114 = "http://www.link114.cn/alexa/"
     chrome_options = Options()
-    # chrome_options.add_argument('--headless')
-    browser = webdriver.Chrome(options=chrome_options)
+    chrome_options.add_argument('--headless')
+    browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver.exe", options=chrome_options)
     timeout_s = 20
     browser.implicitly_wait(timeout_s)
     # 开始请求
@@ -302,16 +341,36 @@ def get_alexa_rank_by_link114(da):
                     value.append(trid_1)
                     value.append(trid_alexa)
         time.sleep(0.5)
-        print(value)
+        # print(value)
     browser.close()
     browser.quit()
     return da
 
 
 # 7. link114 get Alexa column
-def get_alexa_rank_by_link114_multi(d_a, conf_data):
+def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
+    import logging
+    logger = logging.getLogger("Alexa")
+    logger.setLevel(level=logging.INFO)
+    handler = logging.FileHandler("%s/Alexa-%d-log.txt" % (conf_data["log"], i))
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+
+    # console set
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+
+    logger.addHandler(handler)
+    # logger.addHandler(console)
+
+    start = datetime.datetime.now()
+
+    chrome_options = Options()
+    chrome_options.add_argument('--window-size=1366,768')
+    chrome_options.add_argument('--headless')
     url_114 = "http://www.link114.cn/"
-    browser = webdriver.Chrome()
+    browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver.exe", options=chrome_options)
     timeout_s = 5
     browser.implicitly_wait(timeout_s)
     # 开始请求
@@ -359,20 +418,18 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data):
     key_list = list(d_a.keys())
     value_list = list(d_a.values())
     col_add = col_l
-    # print("***进入进程:", key_list)
-    # print("***进入进程:", value_list)
+    logger.info("key_list:%s" % key_list)
+    logger.info("value_list:%s" % value_list)
     for i in range(counts):
         if (i == (counts - 1)) and (yum > 0):
             col_add = yum
-        print("单个进程轮询:", len(d_a), yum, counts)
         domain_set = []
         for j in range(col_add):
             index = value_list[i * col_l + j][0]
             domain = value_list[i * col_l + j][3]
             domain_set.append(domain)
-            print(index, "\t", domain)
-        domain_str = ',n'.join(domain_set)
-        print(domain_str)
+        domain_str = ','.join(domain_set)
+        logger.info(domain_str)
         browser.find_element_by_id("ip_websites").clear()
         browser.find_element_by_id("ip_websites").send_keys(domain_str)
         browser.find_element_by_id("tj").click()
@@ -397,6 +454,7 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data):
                 data_dict[index].append(trid_alexa)
                 index = index + 1
         alexa_set = data_dict.values()
+        logger.info(alexa_set)
         for d in alexa_set:
             for key, value in d_a.items():
                 if d[1] == value[3]:
@@ -406,58 +464,6 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data):
         time.sleep(timeout_s)
     browser.close()
     browser.quit()
+    end = datetime.datetime.now()
+    logger.info("%d" % (end - start).seconds)
     return d_a
-
-
-# 根据html获取 alexa_rank
-def get_alexa_rank_from_html(html):
-    reg = r' <div class="rankmini-rank">.*?<span>#</span>([\d,]{0,20}).*?</div>'
-    urlre = re.compile(reg, re.I | re.M | re.S)
-    urllist = urlre.findall(html)
-    if len(urllist):
-        rank_n = urllist[0].replace(',', '')
-    else:
-        rank_n = "无排名"
-    return rank_n
-
-# 8. Alexa get Alexa one by one
-def get_alexa_rank_by_alexa(da):
-    url_alexa_head = "https://www.alexa.com/"
-    chrome_options = Options()
-    # chrome_options.add_argument('--headless')
-    browser = webdriver.Chrome(options=chrome_options)
-    timeout_s = 10
-    browser.implicitly_wait(timeout_s)
-
-    # browser.set_page_load_timeout(timeout_s - 1)
-    # browser.set_script_timeout(timeout_s - 1)
-
-    # js = "window.open(\"" + "https://www.baidu.com" + "\");"
-    # browser.execute_script(js)
-    # time.sleep(1)
-    all_win = browser.window_handles
-    print("total len = ", len(da))
-    for key, value in da.items():
-        print(key, "\t", value)
-        domain = value[3]
-        print(domain)
-        url_alexa = url_alexa_head + "siteinfo/" + domain
-
-        try:
-            js = "window.open(\"" + url_alexa + "\");"
-            browser.execute_script(js)
-            time.sleep(10)
-            html = browser.page_source
-            rank_n = get_alexa_rank_by_alexa(html)
-        except TimeoutException:
-            rank_n = "Timeout"
-            browser.execute_script("window.stop();")
-            # print("Alexa Timeout")
-        print(domain, "\t", rank_n)
-        # value.append(domain)
-        # value.append(rank_n)
-        time.sleep(5)
-        browser.close()
-        browser.switch_to.window(all_win[0])
-    browser.quit()
-    return da
