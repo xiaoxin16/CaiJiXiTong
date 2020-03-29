@@ -4,7 +4,9 @@
 import datetime, os
 import logging
 from multiprocessing import freeze_support
-import WebInfo
+from openpyxl import Workbook
+from openpyxl import load_workbook
+from openpyxl.styles import Alignment
 
 
 # 1. 读取配置文件
@@ -47,13 +49,12 @@ def select_file(conf):
                     line = f.readline()
     for key, value in data.items():
         print(key, len(value), value)
+    return data
     # return dst_file
 
 
 # 2.2 读取文件内容
 def get_excel_data(fp, fn, width, isprocess):
-    from openpyxl import Workbook
-    from openpyxl import load_workbook
 
     wb = load_workbook(fp + "/" + fn)
     ws = wb.worksheets[0]
@@ -71,11 +72,37 @@ def get_excel_data(fp, fn, width, isprocess):
     return data_arry
 
 
+# 2. 非空IP 列表
+def write_task_excel(da, conf_data, add_head):
+    wb = Workbook()
+    ws = wb.active
+    alig_s = Alignment(horizontal='left', vertical='center')
+    ws_1 = wb.create_sheet("核查结果", 0)
+    index_1 = 1
+    if add_head == 1:
+        for i in range(len(conf_data["title"])):
+            ws_1.cell(row=1, column=i + 1).value = conf_data["title"][i]
+            ws_1.cell(row=1, column=i + 1).alignment = alig_s
+        index_1 = 2
+    for i in sorted(da):
+        for ii in range(1, len(da[i]) + 1):
+            if ii == 1:
+                ss = int(da[i][ii - 1])
+            else:
+                ss = da[i][ii - 1]
+            ws_1.cell(row=index_1, column=ii).value = ss
+            ws_1.cell(row=index_1, column=ii).alignment = alig_s
+        index_1 = index_1 + 1
+
+    wb.save(conf_data["dst"] + "/日志核查结果.xlsx")
+
+
 def main():
     # begin
     conf_fp = "../workdata/conf/config.json"
     conf_data = read_conf(conf_fp)
-    select_file(conf_data)
+    da = select_file(conf_data)
+    write_task_excel(da, conf_data, 1)
 
     # os.system("pause")
 
