@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
 
-import datetime, os
+import datetime, io, os, sys
 import logging
 from multiprocessing import freeze_support
 import WebInfo
@@ -59,11 +59,15 @@ def get_excel_data(fp, fn, width, isprocess):
 
 def main():
     # begin
+    sys.stdout.reconfigure(encoding='utf-8')
     conf_fp = "../workdata/conf/config.json"
+    conf_data = read_conf(conf_fp)
     # log set
     logger = logging.getLogger("Main")
     logger.setLevel(level=logging.INFO)
-    handler = logging.FileHandler("%s/log.txt" % conf_fp["conf"])
+    if not os.path.exists(conf_data["log"]):
+        os.mkdir(conf_data["log"])
+    handler = logging.FileHandler("%s/main_log.txt" % (conf_data["log"]), encoding = 'utf-8')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -77,7 +81,7 @@ def main():
 
     start = datetime.datetime.now()
     logger.info("1. 加载配置文件")
-    conf_data = read_conf(conf_fp)
+
     logger.info("2. 加载任务文件，复制到输出目录")
     file_name = select_file(conf_data["src"], conf_data["dst"])
     conf_data["fn"] = file_name

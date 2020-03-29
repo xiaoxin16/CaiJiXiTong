@@ -72,7 +72,7 @@ def update_task_excel(da, conf_data, add_head):
         index_1 = 2
     for i in sorted(da):
         # print(da[i])
-        if da[i][4].strip() == "":
+        if da[i][4].strip() == "" or da[i][4].strip() == "NULL":
             for ii in range(1, len(da[i]) + 1):
                 ws_2.cell(row=index_2, column=ii).value = da[i][ii - 1]
                 ws_2.cell(row=index_2, column=ii).alignment = alig_s
@@ -140,7 +140,7 @@ def dns_process(d_a, conf_data, i):
     import logging
     logger = logging.getLogger("DNS")
     logger.setLevel(level=logging.INFO)
-    handler = logging.FileHandler("%s/DNS-%d-log.txt" % (conf_data["log"], i))
+    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (conf_data["log"], i), encoding = 'utf-8')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -163,23 +163,31 @@ def dns_process(d_a, conf_data, i):
             value.append("")
             value.append(domain)
             myaddr.append(domain)
-            logger.info("[%s\t%s\t%s]" % (value[0], domain, domain))
+            # logger.info("[%s\t%s\t%s]" % (value[0], domain, domain))
         else:
             value.append(domain)
             try:
                 A = socket.gethostbyname(domain)
                 myaddr.append(A)
-                logger.info("[%s\t%s\t%s]" % (value[0], domain, myaddr[0]))
+                # logger.info("[%s\t%s\t%s]" % (value[0], domain, myaddr[0]))
             except socket.error:
                 myaddr.append("")
-                logger.info("[%s\t%s\t解析失败]" % (value[0], domain))
-            value.append(myaddr[0])
+                # logger.info("[%s\t%s\t解析失败]" % (value[0], domain))
         time.sleep(0.1)
         if myaddr[0].strip() == "":
-            value.append("")
-            value.append("")
-            value.append("")
+            value.append("NULL")
+            value.append("NULL")
+            value.append("NULL")
+            value_n = value
+            value_n.append("NULL")
+            value_n.append("NULL")
+            value_n.append("NULL")
+            value_n.append("NULL")
+            value_n.append("NULL")
+            msgstr = ",".join(map(str, value_n))
+            logger.info("[%s]" % msgstr)
         else:
+            value.append(myaddr[0])
             dbpath = conf_data["conf"] + "/ipipfree.ipdb"
             db = ipdb.City(dbpath)
             city_str = db.find(myaddr[0], "CN")
@@ -193,7 +201,7 @@ def dns_process(d_a, conf_data, i):
                 value.append("境外")
             value.append(city_str[0] + "·" + city_str[1])
     end = datetime.datetime.now()
-    logger.info("%d" % (end-start).seconds)
+    # logger.info("%d" % (end-start).seconds)
     return d_a
 
 
@@ -202,7 +210,7 @@ def get_title_by_selenium(d_a, conf_data, i):
     import logging
     logger = logging.getLogger("SELENIUM")
     logger.setLevel(level=logging.INFO)
-    handler = logging.FileHandler("%s/SELEIUM-%d-log.txt" % (conf_data["log"], i))
+    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (conf_data["log"], i), encoding = 'utf-8')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -235,8 +243,8 @@ def get_title_by_selenium(d_a, conf_data, i):
     key_list = list(d_a.keys())
     value_list = list(d_a.values())
     col_add = col_l
-    logger.info("key_list:%s" % key_list)
-    logger.info("value_list:%s" % value_list)
+    # logger.info("key_list:%s" % key_list)
+    # logger.info("value_list:%s" % value_list)
     for i in range(counts):
         if (i == (counts - 1)) and (yum > 0):
             col_add = yum
@@ -244,15 +252,15 @@ def get_title_by_selenium(d_a, conf_data, i):
         for j in range(col_add):
             index = value_list[i * col_l + j][0]
             url = value_list[i * col_l + j][2]
-            logger.info("%s, %s" % (index, url))
+            # logger.info("%s, %s" % (index, url))
             # 开始请求
             try:
                 js = "window.open(\"" + url + "\");"
                 browser.execute_script(js)
-                logger.info("%s JS execute OK" % url)
+                # logger.info("%s JS execute OK" % url)
             except {socket.timeout, TimeoutException}:
                 logger.info("%s socket超时:" % url)
-                browser.execute_script("window.stop();")
+                # browser.execute_script("window.stop();")
                 url_refer = "超时"
         for j in range(col_add):
             index = value_list[i * col_l + j][0]
@@ -268,11 +276,18 @@ def get_title_by_selenium(d_a, conf_data, i):
                 # print(index, "\t", url, "\t", b_title)
                 url_con = browser.current_url.rstrip('/')
                 if domain == urlparse(url_con).hostname:
-                    url_refer = ""
+                    url_refer = "NULL"
                 else:
                     url_refer = browser.current_url
                 browser.get_screenshot_as_file(screen_shot_dir + str(index) + "_" + str(domain) + ".png")
-                logger.info("%s\t%s\t%s, 正常-截图成功" % (index, url, b_title))
+                if "浏览器需要支持JavaScript" in browser.page_source:
+                    b_title = "javascript"
+                    logger.info("%s\t%s\t%s, 正常-截图成功-浏览器需要支持JavaScript" % (index, url, b_title))
+                elif "load javascript" in browser.page_source:
+                    b_title = "javascript"
+                    logger.info("%s\t%s\t%s, 正常-截图成功-浏览器需要支持JavaScript" % (index, url, b_title))
+                else:
+                    logger.info("%s\t%s\t%s, 正常-截图成功" % (index, url, b_title))
             except UnexpectedAlertPresentException:
                 browser.switch_to.alert.accept()
                 b_title = browser.title
@@ -281,7 +296,7 @@ def get_title_by_selenium(d_a, conf_data, i):
                 # print(index, "\t", url, "\t", b_title)
                 url_con = browser.current_url.rstrip('/')
                 if domain == urlparse(url_con).hostname:
-                    url_refer = ""
+                    url_refer = "NULL"
                 else:
                     url_refer = browser.current_url
                 browser.get_screenshot_as_file(screen_shot_dir + str(index) + "_" + str(domain) + ".png")
@@ -289,7 +304,7 @@ def get_title_by_selenium(d_a, conf_data, i):
             except TimeoutException:
                 url_refer = "超时"
                 b_title = "超时或者无法访问"
-                url_con = ""
+                url_con = "NULL"
                 try:
                     browser.get_screenshot_as_file(screen_shot_dir + str(index) + "_" + str(domain) + ".png")
                     b_title = "补" + url
@@ -300,16 +315,19 @@ def get_title_by_selenium(d_a, conf_data, i):
                     fpt.write("超时了哇")
                     logger.info("%s, 超时-截图失败, %s" % (url, str(msg)))
                 except TimeoutException:
+                    print("未知超时")
                     logger.info("%s, 超时-截图失败, 未知原因" % url)
             browser.close()
             browser.switch_to.window(all_win[0])
             value_list[i * col_l + j].append(b_title)
             value_list[i * col_l + j].append(url_refer)
             value_list[i * col_l + j].append(url_con)
+            msgstr = ",".join(map(str, value_list[i * col_l + j]))
+            logger.info("[%s]" % msgstr)
     browser.close()
     browser.quit()
     end = datetime.datetime.now()
-    logger.info("%d" % (end - start).seconds)
+    logger.info("耗时:%d秒" % (end - start).seconds)
     return d_a
 
 
@@ -352,7 +370,7 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
     import logging
     logger = logging.getLogger("Alexa")
     logger.setLevel(level=logging.INFO)
-    handler = logging.FileHandler("%s/Alexa-%d-log.txt" % (conf_data["log"], i))
+    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (conf_data["log"], i), encoding = 'utf-8')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -418,8 +436,8 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
     key_list = list(d_a.keys())
     value_list = list(d_a.values())
     col_add = col_l
-    logger.info("key_list:%s" % key_list)
-    logger.info("value_list:%s" % value_list)
+    # logger.info("key_list:%s" % key_list)
+    # logger.info("value_list:%s" % value_list)
     for i in range(counts):
         if (i == (counts - 1)) and (yum > 0):
             col_add = yum
@@ -429,7 +447,7 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
             domain = value_list[i * col_l + j][3]
             domain_set.append(domain)
         domain_str = ','.join(domain_set)
-        logger.info(domain_str)
+        # logger.info(domain_str)
         browser.find_element_by_id("ip_websites").clear()
         browser.find_element_by_id("ip_websites").send_keys(domain_str)
         browser.find_element_by_id("tj").click()
@@ -454,16 +472,19 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
                 data_dict[index].append(trid_alexa)
                 index = index + 1
         alexa_set = data_dict.values()
-        logger.info(alexa_set)
         for d in alexa_set:
             for key, value in d_a.items():
                 if d[1] == value[3]:
                     value.append(d[1])
                     value.append(d[2])
+                    msgstr = ",".join(map(str, value))
+                    logger.info("[%s]" % msgstr)
                     break
         time.sleep(timeout_s)
+
     browser.close()
     browser.quit()
     end = datetime.datetime.now()
-    logger.info("%d" % (end - start).seconds)
+
+    logger.info("耗时:%d秒" % (end - start).seconds)
     return d_a
