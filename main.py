@@ -60,7 +60,7 @@ def get_excel_data(fp, fn, width, isprocess):
 def main():
     # begin
     # sys.stdout.reconfigure(encoding='utf-8')
-    conf_fp = "../workdata/conf/config.json"
+    conf_fp = "./data/conf/config.json"
     conf_data = read_conf(conf_fp)
     # log set
     logger = logging.getLogger("Main")

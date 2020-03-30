@@ -240,7 +240,7 @@ def get_title_by_selenium(d_a, conf_data, i):
     chrome_options.add_argument("--disable-browser-side-navigation")
     chrome_options.add_argument("--disable-gpu")
 
-    browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver.exe", options=chrome_options)
+    browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver", options=chrome_options)
     timeout_s = 10
     browser.implicitly_wait(timeout_s)
     screen_shot_dir = conf_data["screenshot"] + "/"
@@ -343,7 +343,7 @@ def get_alexa_rank_by_link114(da, conf_data, i):
     url_114 = "http://www.link114.cn/alexa/"
     chrome_options = Options()
     chrome_options.add_argument('--headless')
-    browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver.exe", options=chrome_options)
+    browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver", options=chrome_options)
     timeout_s = 20
     browser.implicitly_wait(timeout_s)
     # 开始请求
@@ -395,7 +395,7 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
     chrome_options.add_argument('--window-size=1366,768')
     chrome_options.add_argument('--headless')
     url_114 = "http://www.link114.cn/"
-    browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver.exe", options=chrome_options)
+    browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver", options=chrome_options)
     timeout_s = 5
     browser.implicitly_wait(timeout_s)
     # 开始请求

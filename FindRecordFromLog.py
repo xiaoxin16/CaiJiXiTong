@@ -99,7 +99,7 @@ def write_task_excel(da, conf_data, add_head):
 
 def main():
     # begin
-    conf_fp = "../workdata/conf/config.json"
+    conf_fp = "./data/conf/config.json"
     conf_data = read_conf(conf_fp)
     da = select_file(conf_data)
     write_task_excel(da, conf_data, 1)
