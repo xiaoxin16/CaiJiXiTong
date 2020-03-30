@@ -226,14 +226,21 @@ def get_title_by_selenium(d_a, conf_data, i):
     chrome_options = Options()
     chrome_options.add_argument('--ignore-certificate-errors')
     chrome_options.add_argument('--window-size=1366,768')
+    # chrome_options.add_argument('--headless')
     pref_sets ={
         'profile.default_content_setting_values': {
             'javascript': 2
         }
     }
     chrome_options.add_experimental_option('prefs', pref_sets)
-    # chrome_options.add_argument('--headless')
-    browser = webdriver.Chrome(executable_path="../workdata/conf" + "/chromedriver.exe", options=chrome_options)
+    chrome_options.add_argument("enable-automation")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-infobars")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-browser-side-navigation")
+    chrome_options.add_argument("--disable-gpu")
+
+    browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver.exe", options=chrome_options)
     timeout_s = 10
     browser.implicitly_wait(timeout_s)
     screen_shot_dir = conf_data["screenshot"] + "/"

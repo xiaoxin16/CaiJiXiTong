@@ -59,7 +59,7 @@ def get_excel_data(fp, fn, width, isprocess):
 
 def main():
     # begin
-    sys.stdout.reconfigure(encoding='utf-8')
+    # sys.stdout.reconfigure(encoding='utf-8')
     conf_fp = "../workdata/conf/config.json"
     conf_data = read_conf(conf_fp)
     # log set
@@ -96,7 +96,7 @@ def main():
     da = WebInfo.multiprocess_fun(da, 4, conf_data)
     end = datetime.datetime.now()
     logger.info("6. final is in %d" % (end - start).seconds)
-    os.system("pause")
+    # os.system("pause")
 
 
 if __name__ == "__main__":
