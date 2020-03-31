@@ -11,6 +11,8 @@ from selenium.common.exceptions import TimeoutException, UnexpectedAlertPresentE
 from openpyxl import Workbook
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment
+from PIL import Image, ImageDraw, ImageFont
+import platform
 
 
 # import logging
@@ -53,35 +55,33 @@ def update_task_excel(da, conf_data, add_head):
     wb = load_workbook(conf_data["dst"] + "/" + conf_data["fn"])
     ws = wb.active
     alig_s = Alignment(horizontal='left', vertical='center')
-    god_sheet_name = '核查结果_正常'
-    bad_sheet_name = '核查结果_异常'
+    god_sheet_name = '核查结果'
+    # bad_sheet_name = '核查结果_异常'
     if god_sheet_name not in wb.sheetnames:
         ws_1 = wb.create_sheet(god_sheet_name, 0)
     else:
         ws_1 = wb[god_sheet_name]
-    if bad_sheet_name not in wb.sheetnames:
-        ws_2 = wb.create_sheet(bad_sheet_name, 1)
-    else:
-        ws_2 = wb[bad_sheet_name]
     index_1 = 1
-    index_2 = 1
     if add_head == 1:
         for i in range(len(conf_data["title"])):
-            ws_1.cell(row=1, column=i + 1).value = conf_data["title"][i]
-            ws_1.cell(row=1, column=i + 1).alignment = alig_s
+            ws_1.cell(row=index_1, column=i + 1).value = conf_data["title"][i]
+            ws_1.cell(row=index_1, column=i + 1).alignment = alig_s
         index_1 = 2
-    for i in sorted(da):
+    for i in sorted(da.keys()):
+        for ii in range(1, len(da[i]) + 1):
+            ws_1.cell(row=i+index_1-1, column=ii).value = da[i][ii - 1]
+            ws_1.cell(row=i+index_1-1, column=ii).alignment = alig_s
         # print(da[i])
-        if da[i][4].strip() == "" or da[i][4].strip() == "NULL":
-            for ii in range(1, len(da[i]) + 1):
-                ws_2.cell(row=index_2, column=ii).value = da[i][ii - 1]
-                ws_2.cell(row=index_2, column=ii).alignment = alig_s
-            index_2 = index_2 + 1
-        else:
-            for ii in range(1, len(da[i]) + 1):
-                ws_1.cell(row=index_1, column=ii).value = da[i][ii - 1]
-                ws_1.cell(row=index_1, column=ii).alignment = alig_s
-            index_1 = index_1 + 1
+        # if da[i][4].strip() == "" or da[i][4].strip() == "NULL":
+        #     for ii in range(1, len(da[i]) + 1):
+        #         ws_2.cell(row=index_2, column=ii).value = da[i][ii - 1]
+        #         ws_2.cell(row=index_2, column=ii).alignment = alig_s
+        #     index_2 = index_2 + 1
+        # else:
+        #     for ii in range(1, len(da[i]) + 1):
+        #         ws_1.cell(row=index_1, column=ii).value = da[i][ii - 1]
+        #         ws_1.cell(row=index_1, column=ii).alignment = alig_s
+        #     index_1 = index_1 + 1
     wb.save(conf_data["dst"] + "/" + conf_data["fn"])
 
 
@@ -91,11 +91,38 @@ def multiprocess_fun(d_a, task_kind, conf_data):
     pool = Pool(poll_num)
     key_dic = {}
     value_dic = {}
+    dict_emp = {}
     # 分组
     for i in range(poll_num):
         key_dic[i] = []
         value_dic[i] = []
     for key, value in d_a.items():
+        if task_kind == 2:
+            if not os.path.exists(conf_data["screenshot"]):
+                os.mkdir(conf_data["screenshot"])
+            if value[4] == "" or value[4] == "NULL":
+                value.append("NULL")
+                value.append("NULL")
+                value.append("NULL")
+                dict_emp[key] = value
+                screen_shot_dir = conf_data["screenshot"] + "/"
+                screen_shot_file_name = screen_shot_dir + str(value[0]) + "_" + str(value[3]) + ".png"
+                img = Image.new('RGB', (1366, 768), (255, 255, 255))
+                img.save(screen_shot_file_name)
+                img = Image.open(screen_shot_file_name)
+                draw = ImageDraw.Draw(img)
+                if platform.system() == 'Windows':
+                    font_info = "C:\\Windows\\Fonts\\SIMLI.TTF"
+                elif platform.system() == 'Linux':
+                    font_info = "C:\\Windows\\Fonts\\SIMLI.TTF"
+                else:
+                    print('其他')
+                ttfont = ImageFont.truetype(font=font_info, size=80)
+                draw.text((550, 330), u"解析失败", fill="#0000ff", font=ttfont)
+                img.save(screen_shot_file_name)
+                # fpt = open(screen_shot_file_name, 'w')
+                # fpt.write("解析失败".encode("utf-8"))
+                continue
         for i in range(poll_num):
             if int(key % poll_num) == i:
                 key_dic[i].append(key)
@@ -107,8 +134,6 @@ def multiprocess_fun(d_a, task_kind, conf_data):
         new_dict[i] = dict(zip(key_dic[i], value_dic[i]))
         # module_logger.info("分组:%s" % (new_dict[i]))
         if task_kind == 1:
-            if not os.path.exists(conf_data["log"]):
-                os.mkdir(conf_data["log"])
             res_dict.append(pool.apply_async(dns_process, (new_dict[i], conf_data, i)))
         elif task_kind == 2:
             if not os.path.exists(conf_data["screenshot"]):
@@ -122,17 +147,29 @@ def multiprocess_fun(d_a, task_kind, conf_data):
     pool.join()
 
     res_dict_N = {}
+    res_dict_JS = {}
     for res in res_dict:
         res_dict_N.update(res.get())
     if task_kind == 1:
         update_task_excel(res_dict_N, conf_data, 0)
+        return res_dict_N
     elif task_kind == 2:
+        res_dict_N.update(dict_emp)
+        for key, value in res_dict_N.items():
+            if value[7] == "javascript":
+                res_dict_JS[key] = value
         update_task_excel(res_dict_N, conf_data, 0)
+        return res_dict_JS
+        # if len(res_dict_JS) > 0:
+        #     return res_dict_JS
+        # else:
+        #     return res_dict_N
     elif task_kind == 3:
         update_task_excel(res_dict_N, conf_data, 1)
+        return res_dict_N
     elif task_kind == 4:
         update_task_excel(res_dict_N, conf_data, 1)
-    return res_dict_N
+        return res_dict_N
 
 
 # 4. [3, 'http://01014688.comxxx', 'http://01014688.comxxx', '01014688.comxxx', '', '', '', '']
@@ -140,7 +177,8 @@ def dns_process(d_a, conf_data, i):
     import logging
     logger = logging.getLogger("DNS")
     logger.setLevel(level=logging.INFO)
-    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (conf_data["log"], i), encoding = 'utf-8')
+    log_task_dir = conf_data["log"] + "/" + os.path.splitext(conf_data["fn"])[0]
+    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (log_task_dir, i), encoding='utf-8')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -178,13 +216,7 @@ def dns_process(d_a, conf_data, i):
             value.append("NULL")
             value.append("NULL")
             value.append("NULL")
-            value_n = value
-            value_n.append("NULL")
-            value_n.append("NULL")
-            value_n.append("NULL")
-            value_n.append("NULL")
-            value_n.append("NULL")
-            msgstr = ",".join(map(str, value_n))
+            msgstr = ",".join(map(str, value))
             logger.info("[%s]" % msgstr)
         else:
             value.append(myaddr[0])
@@ -210,7 +242,8 @@ def get_title_by_selenium(d_a, conf_data, i):
     import logging
     logger = logging.getLogger("SELENIUM")
     logger.setLevel(level=logging.INFO)
-    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (conf_data["log"], i), encoding = 'utf-8')
+    log_task_dir = conf_data["log"] + "/" + os.path.splitext(conf_data["fn"])[0]
+    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (log_task_dir, i), encoding='utf-8')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -227,12 +260,13 @@ def get_title_by_selenium(d_a, conf_data, i):
     chrome_options.add_argument('--ignore-certificate-errors')
     chrome_options.add_argument('--window-size=1366,768')
     # chrome_options.add_argument('--headless')
-    pref_sets ={
-        'profile.default_content_setting_values': {
-            'javascript': 2
+    if conf_data["javascript"] == "close":
+        pref_sets ={
+            'profile.default_content_setting_values': {
+                'javascript': 2
+            }
         }
-    }
-    chrome_options.add_experimental_option('prefs', pref_sets)
+        chrome_options.add_experimental_option('prefs', pref_sets)
     chrome_options.add_argument("enable-automation")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-infobars")
@@ -306,7 +340,7 @@ def get_title_by_selenium(d_a, conf_data, i):
                     url_refer = "NULL"
                 else:
                     url_refer = browser.current_url
-                browser.get_screenshot_as_file(screen_shot_dir + str(index) + "_" + str(domain) + ".png")
+                browser.get_screenshot_as_file(screen_shot_dir + str(index) + "_" + str(domain) + ".txt")
                 logger.info("%s\t%s\t%s, 弹窗-截图成功" % (index, url, b_title))
             except TimeoutException:
                 url_refer = "超时"
@@ -317,9 +351,21 @@ def get_title_by_selenium(d_a, conf_data, i):
                     b_title = "补" + url
                     logger.info("%s\t%s\t%s, 超时-截图成功" % (index, url, b_title))
                 except BaseException as msg:
-                    screen_shot_file_name = screen_shot_dir + str(index) + "_" + str(domain) + ".txt"
-                    fpt = open(screen_shot_file_name, 'w')
-                    fpt.write("超时了哇")
+                    screen_shot_file_name = screen_shot_dir + str(index) + "_" + str(domain) + ".png"
+                    img = Image.new('RGB', (1366, 768), (255, 255, 255))
+                    img.save(screen_shot_file_name)
+                    img = Image.open(screen_shot_file_name)
+                    draw = ImageDraw.Draw(img)
+                    if platform.system() == 'Windows':
+                        font_info = "C:\\Windows\\Fonts\\SIMLI.TTF"
+                    elif platform.system() == 'Linux':
+                        font_info = "C:\\Windows\\Fonts\\SIMLI.TTF"
+                    else:
+                        print('其他')
+                    ttfont = ImageFont.truetype(font=font_info, size=80)
+                    draw.text((550, 330), u"超 时", fill="#0000ff", font=ttfont)
+                    img.save(screen_shot_file_name)
+
                     logger.info("%s, 超时-截图失败, %s" % (url, str(msg)))
                 except TimeoutException:
                     print("未知超时")
@@ -377,7 +423,8 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
     import logging
     logger = logging.getLogger("Alexa")
     logger.setLevel(level=logging.INFO)
-    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (conf_data["log"], i), encoding = 'utf-8')
+    log_task_dir = conf_data["log"] + "/" + os.path.splitext(conf_data["fn"])[0]
+    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (log_task_dir, i), encoding='utf-8')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)

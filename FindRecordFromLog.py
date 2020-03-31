@@ -14,8 +14,6 @@ def read_conf(conf_path):
     import json
     with open(conf_path, encoding='utf-8-sig') as f:
         data = json.load(f)
-    # for key, value in data.items():
-    #     print("配置文件：", key, ":", value)
     return data
 
 
@@ -50,7 +48,6 @@ def select_file(conf):
     for key, value in data.items():
         print(key, len(value), value)
     return data
-    # return dst_file
 
 
 # 2.2 读取文件内容

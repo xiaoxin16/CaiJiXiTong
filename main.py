@@ -30,7 +30,7 @@ def select_file(fp, dst_fp):
             print('[', len(files_set), ']:', file)
     index = input("请输入对应文件的序号:")
     file_name = files_set[int(index)-1]
-    dst_file = "核查结果_" + file_name
+    dst_file = file_name
     if not os.path.exists(dst_fp + "/" + dst_file):
         shutil.copy(fp + "/" + file_name, dst_fp + "/" + dst_file)
     return dst_file
@@ -62,12 +62,18 @@ def main():
     # sys.stdout.reconfigure(encoding='utf-8')
     conf_fp = "./data/conf/config.json"
     conf_data = read_conf(conf_fp)
+    file_name = select_file(conf_data["src"], conf_data["dst"])
+    conf_data["fn"] = file_name
+
     # log set
     logger = logging.getLogger("Main")
     logger.setLevel(level=logging.INFO)
+    log_task_dir = conf_data["log"] + "/" + os.path.splitext(conf_data["fn"])[0]
     if not os.path.exists(conf_data["log"]):
         os.mkdir(conf_data["log"])
-    handler = logging.FileHandler("%s/main_log.txt" % (conf_data["log"]), encoding = 'utf-8')
+    if not os.path.exists(log_task_dir):
+        os.mkdir(log_task_dir)
+    handler = logging.FileHandler("%s/main_log.txt" % (log_task_dir), encoding='utf-8')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -83,14 +89,16 @@ def main():
     logger.info("1. 加载配置文件")
 
     logger.info("2. 加载任务文件，复制到输出目录")
-    file_name = select_file(conf_data["src"], conf_data["dst"])
-    conf_data["fn"] = file_name
+
     da = get_excel_data(conf_data["dst"], file_name, 2, 0)
     logger.info("3. 加载excel完毕，开始DNS, len=%d" % (len(da)))
     da = WebInfo.multiprocess_fun(da, 1, conf_data)
     da = get_excel_data(conf_data["dst"], file_name, 7, 0)
     logger.info("4. 加载excel完毕，开始Chrome, len=%d" % (len(da)))
     da = WebInfo.multiprocess_fun(da, 2, conf_data)
+    if len(da) > 0:
+        conf_data["javascript"] = "open"
+        da = WebInfo.multiprocess_fun(da, 2, conf_data)
     da = get_excel_data(conf_data["dst"], file_name, 10, 0)
     logger.info("5. 加载excel完毕，开始查询排名, len=%d" % (len(da)))
     da = WebInfo.multiprocess_fun(da, 4, conf_data)
