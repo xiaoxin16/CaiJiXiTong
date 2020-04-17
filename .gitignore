@@ -17,3 +17,6 @@ dist/
 *.spec
 /data/
 /dist/
+/分中心.py
+*.exe
+/分中心/

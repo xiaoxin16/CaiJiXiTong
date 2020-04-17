@@ -98,15 +98,13 @@ def multiprocess_fun(d_a, task_kind, conf_data):
         value_dic[i] = []
     for key, value in d_a.items():
         if task_kind == 2:
-            if not os.path.exists(conf_data["screenshot"]):
-                os.mkdir(conf_data["screenshot"])
             if value[4] == "" or value[4] == "NULL":
                 value.append("NULL")
                 value.append("NULL")
                 value.append("NULL")
                 dict_emp[key] = value
-                screen_shot_dir = conf_data["screenshot"] + "/"
-                screen_shot_file_name = screen_shot_dir + str(value[0]) + "_" + str(value[3]) + ".png"
+
+                screen_shot_file_name = conf_data["screenshot"] + "/" + str(value[0]) + "_" + str(value[3]) + ".png"
                 img = Image.new('RGB', (1366, 768), (255, 255, 255))
                 img.save(screen_shot_file_name)
                 img = Image.open(screen_shot_file_name)
@@ -136,8 +134,6 @@ def multiprocess_fun(d_a, task_kind, conf_data):
         if task_kind == 1:
             res_dict.append(pool.apply_async(dns_process, (new_dict[i], conf_data, i)))
         elif task_kind == 2:
-            if not os.path.exists(conf_data["screenshot"]):
-                os.mkdir(conf_data["screenshot"])
             res_dict.append(pool.apply_async(get_title_by_selenium, (new_dict[i], conf_data, i)))
         elif task_kind == 3:
             res_dict.append(pool.apply_async(get_alexa_rank_by_link114, (new_dict[i], conf_data, i)))
@@ -177,8 +173,7 @@ def dns_process(d_a, conf_data, i):
     import logging
     logger = logging.getLogger("DNS")
     logger.setLevel(level=logging.INFO)
-    log_task_dir = conf_data["log"] + "/" + os.path.splitext(conf_data["fn"])[0]
-    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (log_task_dir, i), encoding='utf-8')
+    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (conf_data["log"], i), encoding='utf-8')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -242,8 +237,7 @@ def get_title_by_selenium(d_a, conf_data, i):
     import logging
     logger = logging.getLogger("SELENIUM")
     logger.setLevel(level=logging.INFO)
-    log_task_dir = conf_data["log"] + "/" + os.path.splitext(conf_data["fn"])[0]
-    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (log_task_dir, i), encoding='utf-8')
+    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (conf_data["log"], i), encoding='utf-8')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -260,13 +254,13 @@ def get_title_by_selenium(d_a, conf_data, i):
     chrome_options.add_argument('--ignore-certificate-errors')
     chrome_options.add_argument('--window-size=1366,768')
     # chrome_options.add_argument('--headless')
-    if conf_data["javascript"] == "close":
-        pref_sets ={
-            'profile.default_content_setting_values': {
-                'javascript': 2
-            }
-        }
-        chrome_options.add_experimental_option('prefs', pref_sets)
+    # if conf_data["javascript"] == "close":
+    #     pref_sets ={
+    #         'profile.default_content_setting_values': {
+    #             'javascript': 2
+    #         }
+    #     }
+    #     chrome_options.add_experimental_option('prefs', pref_sets)
     chrome_options.add_argument("enable-automation")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-infobars")
@@ -278,14 +272,15 @@ def get_title_by_selenium(d_a, conf_data, i):
     timeout_s = 10
     browser.implicitly_wait(timeout_s)
     screen_shot_dir = conf_data["screenshot"] + "/"
+    page_source_dir = conf_data["pagesource"] + "/"
     col_l = conf_data["col"]
     yum = len(d_a) % col_l
     counts = math.ceil(len(d_a) / col_l)
     key_list = list(d_a.keys())
     value_list = list(d_a.values())
     col_add = col_l
-    # logger.info("key_list:%s" % key_list)
-    # logger.info("value_list:%s" % value_list)
+    logger.info("key_list:%s" % key_list)
+    logger.info("value_list:%s" % value_list)
     for i in range(counts):
         if (i == (counts - 1)) and (yum > 0):
             col_add = yum
@@ -298,11 +293,12 @@ def get_title_by_selenium(d_a, conf_data, i):
             try:
                 js = "window.open(\"" + url + "\");"
                 browser.execute_script(js)
-                # logger.info("%s JS execute OK" % url)
+                logger.info("%s JS execute OK" % url)
             except {socket.timeout, TimeoutException}:
                 logger.info("%s socket超时:" % url)
                 # browser.execute_script("window.stop();")
                 url_refer = "超时"
+        time.sleep(10)
         for j in range(col_add):
             index = value_list[i * col_l + j][0]
             url = value_list[i * col_l + j][2]
@@ -316,11 +312,17 @@ def get_title_by_selenium(d_a, conf_data, i):
                     b_title = "补" + url
                 # print(index, "\t", url, "\t", b_title)
                 url_con = browser.current_url.rstrip('/')
-                if domain == urlparse(url_con).hostname:
+                url_new = url.rstrip('/')
+                if url_new in url_con:
                     url_refer = "NULL"
                 else:
                     url_refer = browser.current_url
                 browser.get_screenshot_as_file(screen_shot_dir + str(index) + "_" + str(domain) + ".png")
+
+                fb = open(page_source_dir + str(index) + "_" + str(domain) + ".html", 'wb')
+                fb.write(browser.page_source.encode("utf-8", "ignore"))
+                fb.close()
+
                 if "浏览器需要支持JavaScript" in browser.page_source:
                     b_title = "javascript"
                     logger.info("%s\t%s\t%s, 正常-截图成功-浏览器需要支持JavaScript" % (index, url, b_title))
@@ -340,8 +342,13 @@ def get_title_by_selenium(d_a, conf_data, i):
                     url_refer = "NULL"
                 else:
                     url_refer = browser.current_url
-                browser.get_screenshot_as_file(screen_shot_dir + str(index) + "_" + str(domain) + ".txt")
+                fb = open(page_source_dir + str(index) + "_" + str(domain) + ".html", 'wb')
+                fb.write(browser.page_source.encode("utf-8", "ignore"))
+                fb.close()
+
+                browser.get_screenshot_as_file(screen_shot_dir + str(index) + "_" + str(domain) + ".png")
                 logger.info("%s\t%s\t%s, 弹窗-截图成功" % (index, url, b_title))
+
             except TimeoutException:
                 url_refer = "超时"
                 b_title = "超时或者无法访问"
@@ -349,6 +356,11 @@ def get_title_by_selenium(d_a, conf_data, i):
                 try:
                     browser.get_screenshot_as_file(screen_shot_dir + str(index) + "_" + str(domain) + ".png")
                     b_title = "补" + url
+
+                    fb = open(page_source_dir + str(index) + "_" + str(domain) + ".html", 'wb')
+                    fb.write(browser.page_source.encode("utf-8", "ignore"))
+                    fb.close()
+
                     logger.info("%s\t%s\t%s, 超时-截图成功" % (index, url, b_title))
                 except BaseException as msg:
                     screen_shot_file_name = screen_shot_dir + str(index) + "_" + str(domain) + ".png"
@@ -357,14 +369,18 @@ def get_title_by_selenium(d_a, conf_data, i):
                     img = Image.open(screen_shot_file_name)
                     draw = ImageDraw.Draw(img)
                     if platform.system() == 'Windows':
-                        font_info = "C:\\Windows\\Fonts\\SIMLI.TTF"
+                        font_info = conf_data["conf"] + "/SIMLI.TTF"
                     elif platform.system() == 'Linux':
-                        font_info = "C:\\Windows\\Fonts\\SIMLI.TTF"
+                        font_info = conf_data["conf"] + "/SIMLI.TTF"
                     else:
                         print('其他')
                     ttfont = ImageFont.truetype(font=font_info, size=80)
                     draw.text((550, 330), u"超 时", fill="#0000ff", font=ttfont)
                     img.save(screen_shot_file_name)
+
+                    fb = open(page_source_dir + str(index) + "_" + str(domain) + ".html", 'wb')
+                    fb.write(browser.page_source.encode("utf-8", "ignore"))
+                    fb.close()
 
                     logger.info("%s, 超时-截图失败, %s" % (url, str(msg)))
                 except TimeoutException:
@@ -423,8 +439,7 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
     import logging
     logger = logging.getLogger("Alexa")
     logger.setLevel(level=logging.INFO)
-    log_task_dir = conf_data["log"] + "/" + os.path.splitext(conf_data["fn"])[0]
-    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (log_task_dir, i), encoding='utf-8')
+    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (conf_data["log"] , i), encoding='utf-8')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)

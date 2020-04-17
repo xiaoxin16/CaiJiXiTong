@@ -27,7 +27,7 @@ def select_file(fp, dst_fp):
             print(len(files_set), ':', file)
     index = input("请输入对应文件的序号:")
     file_name = files_set[int(index)-1]
-    dst_file = "核查结果_" + file_name
+    dst_file = file_name
     if not os.path.exists(dst_fp + "/" + dst_file):
         shutil.copy(fp + "/" + file_name, dst_fp + "/" + dst_file)
     return dst_file
@@ -88,7 +88,7 @@ def write_info_excel(f_p, fn, da, start_index):
 
 
 def main():
-    conf_fp = "../workdata/conf/config.json"
+    conf_fp = "./data/conf/config.json"
     start = datetime.datetime.now()
     print("1. 加载配置文件...")
     conf_data = read_conf(conf_fp)

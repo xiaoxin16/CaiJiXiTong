@@ -31,8 +31,9 @@ def select_file(fp, dst_fp):
     index = input("请输入对应文件的序号:")
     file_name = files_set[int(index)-1]
     dst_file = file_name
-    if not os.path.exists(dst_fp + "/" + dst_file):
-        shutil.copy(fp + "/" + file_name, dst_fp + "/" + dst_file)
+    if not os.path.exists(dst_fp + "/" + os.path.splitext(dst_file)[0]):
+        os.mkdir(dst_fp + "/" + os.path.splitext(dst_file)[0])
+        shutil.copy(fp + "/" + file_name, dst_fp + "/" + os.path.splitext(dst_file)[0] + "/" + dst_file)
     return dst_file
 
 
@@ -62,18 +63,30 @@ def main():
     # sys.stdout.reconfigure(encoding='utf-8')
     conf_fp = "./data/conf/config.json"
     conf_data = read_conf(conf_fp)
+    if not os.path.exists(conf_data["dst"]):
+        os.mkdir(conf_data["dst"])
+
     file_name = select_file(conf_data["src"], conf_data["dst"])
     conf_data["fn"] = file_name
+    conf_data["dst"] = conf_data["dst"] + "/" + os.path.splitext(conf_data["fn"])[0]
+
+    conf_data["log"] = conf_data["dst"] + "/" + conf_data["log"]
+    if not os.path.exists(conf_data["log"]):
+        os.mkdir(conf_data["log"])
+
+    conf_data["screenshot"] = conf_data["dst"] + "/" + "/" + conf_data["screenshot"]
+    if not os.path.exists(conf_data["screenshot"]):
+        os.mkdir(conf_data["screenshot"])
+
+    conf_data["pagesource"] = conf_data["dst"] + "/" + "/" + conf_data["pagesource"]
+    if not os.path.exists(conf_data["pagesource"]):
+        os.mkdir(conf_data["pagesource"])
 
     # log set
     logger = logging.getLogger("Main")
     logger.setLevel(level=logging.INFO)
-    log_task_dir = conf_data["log"] + "/" + os.path.splitext(conf_data["fn"])[0]
-    if not os.path.exists(conf_data["log"]):
-        os.mkdir(conf_data["log"])
-    if not os.path.exists(log_task_dir):
-        os.mkdir(log_task_dir)
-    handler = logging.FileHandler("%s/main_log.txt" % (log_task_dir), encoding='utf-8')
+
+    handler = logging.FileHandler("%s/main_log.txt" % (conf_data["log"]), encoding='utf-8')
     handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
