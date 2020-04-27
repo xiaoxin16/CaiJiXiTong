@@ -60,6 +60,7 @@ def get_excel_data(fp, fn, width, isprocess):
 
 def main():
     # begin
+    # pyinstaller -F main.py -p WebInfo.py --hidden-import WebInfo
     # sys.stdout.reconfigure(encoding='utf-8')
     conf_fp = "./data/conf/config.json"
     conf_data = read_conf(conf_fp)

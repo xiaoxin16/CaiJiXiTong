@@ -102,6 +102,9 @@ def multiprocess_fun(d_a, task_kind, conf_data):
                 value.append("NULL")
                 value.append("NULL")
                 value.append("NULL")
+                value.append("NULL")
+                value.append("NULL")
+                value.append("NULL")
                 dict_emp[key] = value
 
                 screen_shot_file_name = conf_data["screenshot"] + "/" + str(value[0]) + "_" + str(value[3]) + ".png"
@@ -109,12 +112,7 @@ def multiprocess_fun(d_a, task_kind, conf_data):
                 img.save(screen_shot_file_name)
                 img = Image.open(screen_shot_file_name)
                 draw = ImageDraw.Draw(img)
-                if platform.system() == 'Windows':
-                    font_info = "C:\\Windows\\Fonts\\SIMLI.TTF"
-                elif platform.system() == 'Linux':
-                    font_info = "C:\\Windows\\Fonts\\SIMLI.TTF"
-                else:
-                    print('其他')
+                font_info = conf_data["conf"] + "/" + "SIMLI.TTF"
                 ttfont = ImageFont.truetype(font=font_info, size=80)
                 draw.text((550, 330), u"解析失败", fill="#0000ff", font=ttfont)
                 img.save(screen_shot_file_name)
@@ -211,7 +209,7 @@ def dns_process(d_a, conf_data, i):
             value.append("NULL")
             value.append("NULL")
             value.append("NULL")
-            msgstr = ",".join(map(str, value))
+            msgstr = "#,#".join(map(str, value))
             logger.info("[%s]" % msgstr)
         else:
             value.append(myaddr[0])
@@ -267,8 +265,9 @@ def get_title_by_selenium(d_a, conf_data, i):
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-browser-side-navigation")
     chrome_options.add_argument("--disable-gpu")
-
+    # chrome_options.add_argument("--dns-prefetch-disable")
     browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver.exe", options=chrome_options)
+
     timeout_s = 10
     browser.implicitly_wait(timeout_s)
     screen_shot_dir = conf_data["screenshot"] + "/"
@@ -298,6 +297,9 @@ def get_title_by_selenium(d_a, conf_data, i):
                 logger.info("%s socket超时:" % url)
                 # browser.execute_script("window.stop();")
                 url_refer = "超时"
+        time.sleep(10)
+        all_win = browser.window_handles
+        browser.switch_to.window(all_win[-1])
         time.sleep(10)
         for j in range(col_add):
             index = value_list[i * col_l + j][0]
@@ -391,7 +393,7 @@ def get_title_by_selenium(d_a, conf_data, i):
             value_list[i * col_l + j].append(b_title)
             value_list[i * col_l + j].append(url_refer)
             value_list[i * col_l + j].append(url_con)
-            msgstr = ",".join(map(str, value_list[i * col_l + j]))
+            msgstr = "#,#".join(map(str, value_list[i * col_l + j]))
             logger.info("[%s]" % msgstr)
     browser.close()
     browser.quit()
@@ -515,7 +517,7 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
             index = value_list[i * col_l + j][0]
             domain = value_list[i * col_l + j][3]
             domain_set.append(domain)
-        domain_str = ','.join(domain_set)
+        domain_str = '#,#'.join(domain_set)
         # logger.info(domain_str)
         browser.find_element_by_id("ip_websites").clear()
         browser.find_element_by_id("ip_websites").send_keys(domain_str)
@@ -546,7 +548,7 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
                 if d[1] == value[3]:
                     value.append(d[1])
                     value.append(d[2])
-                    msgstr = ",".join(map(str, value))
+                    msgstr = "#,#".join(map(str, value))
                     logger.info("[%s]" % msgstr)
                     break
         time.sleep(timeout_s)

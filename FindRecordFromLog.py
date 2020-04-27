@@ -21,7 +21,7 @@ def read_conf(conf_path):
 # 2.1 选择文件, 并复制到目录文件
 def select_file(conf):
     import shutil, re
-    files = os.listdir(conf["log"])
+    files = os.listdir("./log")
     files_set = []
     data = {}
     print("文件列表：")
@@ -31,18 +31,18 @@ def select_file(conf):
             print('[', len(files_set), ']:', file)
             if "main" in file:
                 continue
-            with open(conf["log"] + "/" + file, encoding='utf-8') as f:
+            with open("./log/" + file, encoding='utf-8') as f:
                 line = f.readline()
                 while line:
                     # print(line)
                     line.rstrip("\n")
                     if "DNS - INFO - [" in line:
                         newl = re.findall(r'[[](.*)[]]', line)
-                        strs = newl[0].split(',')
+                        strs = newl[0].split('#,#')
                         data[int(strs[0])] = strs
                     elif "SELENIUM - INFO - [" in line:
                         newl = re.findall(r'[[](.*)[]]', line)
-                        strs = newl[0].split(',')
+                        strs = newl[0].split('#,#')
                         data[int(strs[0])] = strs
                     line = f.readline()
     for key, value in data.items():
@@ -91,7 +91,7 @@ def write_task_excel(da, conf_data, add_head):
             ws_1.cell(row=index_1, column=ii).alignment = alig_s
         index_1 = index_1 + 1
 
-    wb.save(conf_data["dst"] + "/日志核查结果.xlsx")
+    wb.save("./日志核查结果.xlsx")
 
 
 def main():
@@ -101,7 +101,7 @@ def main():
     da = select_file(conf_data)
     write_task_excel(da, conf_data, 1)
 
-    # os.system("pause")
+    os.system("pause")
 
 
 if __name__ == "__main__":
