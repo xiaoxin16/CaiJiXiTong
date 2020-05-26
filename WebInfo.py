@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import TimeoutException, UnexpectedAlertPresentException
+from selenium.common.exceptions import TimeoutException, UnexpectedAlertPresentException, NoAlertPresentException
 from openpyxl import Workbook
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment
@@ -40,7 +40,7 @@ def get_url_normalize_single(url):
         url_new = "异常"
     elif "." not in urlparse(url_new).hostname:
         url_new = "异常"
-    elif urlparse(url_new).hostname[0] is ".":
+    elif urlparse(url_new).hostname[0] == ".":
         url_new = "异常"
     elif len(urlparse(url_new).hostname) < 4:
         url_new = "异常"
@@ -253,12 +253,12 @@ def get_title_by_selenium(d_a, conf_data, i):
     chrome_options.add_argument('--window-size=1366,768')
     # chrome_options.add_argument('--headless')
     # if conf_data["javascript"] == "close":
-    #     pref_sets ={
-    #         'profile.default_content_setting_values': {
-    #             'javascript': 2
-    #         }
+    # pref_sets ={
+    #     'profile.default_content_setting_values': {
+    #         'javascript': 2
     #     }
-    #     chrome_options.add_experimental_option('prefs', pref_sets)
+    # }
+    # chrome_options.add_experimental_option('prefs', pref_sets)
     chrome_options.add_argument("enable-automation")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-infobars")
@@ -308,6 +308,11 @@ def get_title_by_selenium(d_a, conf_data, i):
             browser.switch_to.window(all_win[-1])
             domain = urlparse(url).hostname
             logger.info("切换\t%s" % url)
+            # try:
+            #     alert = browser.switch_to.alert
+            #     alert.accept()
+            # except NoAlertPresentException:
+            #     a = 1
             try:
                 b_title = browser.title
                 if b_title == "":
@@ -334,6 +339,8 @@ def get_title_by_selenium(d_a, conf_data, i):
                 else:
                     logger.info("%s\t%s\t%s, 正常-截图成功" % (index, url, b_title))
             except UnexpectedAlertPresentException:
+                # print("进入弹窗")
+                time.sleep(1)
                 browser.switch_to.alert.accept()
                 b_title = browser.title
                 if b_title == "":
