@@ -136,7 +136,7 @@ def multiprocess_fun(d_a, task_kind, conf_data):
         elif task_kind == 3:
             res_dict.append(pool.apply_async(get_alexa_rank_by_link114, (new_dict[i], conf_data, i)))
         elif task_kind == 4:
-            res_dict.append(pool.apply_async(get_alexa_rank_by_link114_multi, (new_dict[i], conf_data, i)))
+            res_dict.append(pool.apply_async(get_alexa_ranks_by_link114, (new_dict[i], conf_data, i)))
     pool.close()
     pool.join()
 
@@ -251,7 +251,7 @@ def get_title_by_selenium(d_a, conf_data, i):
     chrome_options = Options()
     chrome_options.add_argument('--ignore-certificate-errors')
     chrome_options.add_argument('--window-size=1366,768')
-    # chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--headless')
     # if conf_data["javascript"] == "close":
     # pref_sets ={
     #     'profile.default_content_setting_values': {
@@ -444,6 +444,91 @@ def get_alexa_rank_by_link114(da, conf_data, i):
 
 
 # 7. link114 get Alexa column
+def get_alexa_ranks_by_link114(d_a, conf_data, i):
+    import logging
+    logger = logging.getLogger("Alexa")
+    logger.setLevel(level=logging.INFO)
+    handler = logging.FileHandler("%s/SELENIUM-%d-log.txt" % (conf_data["log"], i), encoding='utf-8')
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    # console set
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    logger.addHandler(handler)
+    # logger.addHandler(console)
+    start = datetime.datetime.now()
+    chrome_options = Options()
+    chrome_options.add_argument('--window-size=1366,768')
+    chrome_options.add_argument('--headless')
+    url_114 = "http://www.link114.cn/alexa/"
+    browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver.exe", options=chrome_options)
+    timeout_s = 5
+    browser.implicitly_wait(timeout_s)
+    # 开始请求
+    browser.get(url_114)
+
+    col_l = conf_data["col"]
+    yum = len(d_a) % col_l
+    counts = math.ceil(len(d_a) / col_l)
+    key_list = list(d_a.keys())
+    value_list = list(d_a.values())
+    col_add = col_l
+    # logger.info("key_list:%s" % key_list)
+    # logger.info("value_list:%s" % value_list)
+    for i in range(counts):
+        if (i == (counts - 1)) and (yum > 0):
+            col_add = yum
+        domain_set = []
+        for j in range(col_add):
+            index = value_list[i * col_l + j][0]
+            domain = value_list[i * col_l + j][3]
+            domain_set.append(domain)
+        domain_str = '#,#'.join(domain_set)
+        # logger.info(domain_str)
+        browser.find_element_by_id("ip_websites").clear()
+        browser.find_element_by_id("ip_websites").send_keys(domain_str)
+        browser.find_element_by_id("tj").click()
+        time.sleep(10)
+        trlist = browser.find_elements_by_tag_name("tr")
+        data_dict = {}
+        index = 0
+        for tr in trlist:
+            # 获取tr中的所有td
+            tdlist = tr.find_elements_by_tag_name("td")
+            data_dict[index] = []
+            if len(tdlist) > 0:
+                # 获取td[0]的文本
+                text_1 = tr.find_elements_by_tag_name("td")[0].text
+                text_1 = text_1.replace(".", "")
+                # trid_1 = tr.get_attribute("id")
+                trid_1 = tr.find_elements_by_tag_name("td")[1].get_attribute("value")
+                trid_alexa = tr.find_elements_by_tag_name("td")[2].text
+                trid_alexa = trid_alexa.replace("Alexa:", "")
+                data_dict[index].append(text_1)
+                data_dict[index].append(trid_1)
+                data_dict[index].append(trid_alexa)
+                index = index + 1
+        alexa_set = data_dict.values()
+        for d in alexa_set:
+            for key, value in d_a.items():
+                if d[1] == value[3]:
+                    value.append(d[1])
+                    value.append(d[2])
+                    msgstr = "#,#".join(map(str, value))
+                    logger.info("[%s]" % msgstr)
+                    break
+        time.sleep(timeout_s)
+
+    browser.close()
+    browser.quit()
+    end = datetime.datetime.now()
+
+    logger.info("耗时:%d秒" % (end - start).seconds)
+    return d_a
+
+
+# 8. link114 get Alexa column
 def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
     import logging
     logger = logging.getLogger("Alexa")

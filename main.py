@@ -12,8 +12,6 @@ def read_conf(conf_path):
     import json
     with open(conf_path, encoding='utf-8-sig') as f:
         data = json.load(f)
-    # for key, value in data.items():
-    #     print("配置文件：", key, ":", value)
     return data
 
 
