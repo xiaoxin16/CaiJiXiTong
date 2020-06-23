@@ -136,7 +136,7 @@ def multiprocess_fun(d_a, task_kind, conf_data):
         elif task_kind == 3:
             res_dict.append(pool.apply_async(get_alexa_rank_by_link114, (new_dict[i], conf_data, i)))
         elif task_kind == 4:
-            res_dict.append(pool.apply_async(get_alexa_ranks_by_link114, (new_dict[i], conf_data, i)))
+            res_dict.append(pool.apply_async(get_alexa_rank_by_link114_multi, (new_dict[i], conf_data, i)))
     pool.close()
     pool.join()
 
@@ -463,7 +463,7 @@ def get_alexa_ranks_by_link114(d_a, conf_data, i):
     chrome_options.add_argument('--headless')
     url_114 = "http://www.link114.cn/alexa/"
     browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver.exe", options=chrome_options)
-    timeout_s = 5
+    timeout_s = 10
     browser.implicitly_wait(timeout_s)
     # 开始请求
     browser.get(url_114)
@@ -513,7 +513,7 @@ def get_alexa_ranks_by_link114(d_a, conf_data, i):
         for d in alexa_set:
             for key, value in d_a.items():
                 if d[1] == value[3]:
-                    value.append(d[1])
+                    # value.append(d[1])
                     value.append(d[2])
                     msgstr = "#,#".join(map(str, value))
                     logger.info("[%s]" % msgstr)
@@ -552,7 +552,7 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
     chrome_options.add_argument('--headless')
     url_114 = "http://www.link114.cn/"
     browser = webdriver.Chrome(executable_path=conf_data["conf"] + "/chromedriver.exe", options=chrome_options)
-    timeout_s = 5
+    timeout_s = 10
     browser.implicitly_wait(timeout_s)
     # 开始请求
     browser.get(url_114)
@@ -638,7 +638,7 @@ def get_alexa_rank_by_link114_multi(d_a, conf_data, i):
         for d in alexa_set:
             for key, value in d_a.items():
                 if d[1] == value[3]:
-                    value.append(d[1])
+                    # value.append(d[1])
                     value.append(d[2])
                     msgstr = "#,#".join(map(str, value))
                     logger.info("[%s]" % msgstr)
